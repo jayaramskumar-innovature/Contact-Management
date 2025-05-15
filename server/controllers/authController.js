@@ -12,7 +12,7 @@ const registerUser = async (req, res, next) => {
     const userExists = await User.findOne({ email });
     if (userExists) {
       res.status(400);
-      throw new Error('User already exists');
+      throw new Error('User already exists blablabla');
     }
 
     // Create user
@@ -77,6 +77,9 @@ const getUserProfile = async (req, res, next) => {
     }
   } catch (err) {
     next(err);
+    //when next is called with a prametre automatically control
+    //skips all the upcoming middlewares if there are any
+    //and calls the middleware with 4 parametres
   }
 };
 
