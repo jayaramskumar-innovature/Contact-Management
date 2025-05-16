@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const generateToken = require('../utils/generateToken');
+const {generateToken,generateRefrestToken} = require('../utils/generateToken');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -11,7 +11,7 @@ const registerUser = async (req, res, next) => {
     // Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
-      res.status(400);
+      res.status(400); 
       throw new Error('User already exists blablabla');
     }
 
@@ -39,20 +39,25 @@ const registerUser = async (req, res, next) => {
 const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
 
-    if (user && (await user.matchPassword(password))) {
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        token: generateToken(user._id)
-      });
-    } else {
-      res.status(401);
-      throw new Error('Invalid email or password');
+    if (!user || !(await user.matchPassword(password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Generate tokens
+    const accessToken = generateToken(user._id);
+    const refreshToken = generateRefrestToken(user._id);
+ 
+
+    // Save refreshToken to DB
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.json({
+      accessToken,
+      refreshToken,
+    });
   } catch (err) {
     next(err);
   }
@@ -83,8 +88,37 @@ const getUserProfile = async (req, res, next) => {
   }
 };
 
+const refreshAccessToken = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    // Verify refresh token
+    console.log("inside refershToken");
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    // console.log('decoded is ',decoded)
+
+    // Check if token exists in DB
+    const user = await User.findById(decoded.id);
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(403).json({ error: 'Invalid refresh token' });
+    }
+
+    // Issue new access token
+    const newAccessToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    res.status(403).json({ error: 'Invalid refresh token' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
-  getUserProfile
+  getUserProfile,
+  refreshAccessToken
 };
