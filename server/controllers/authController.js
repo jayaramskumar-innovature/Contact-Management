@@ -1,75 +1,89 @@
 const User = require('../models/User');
-const {generateToken,generateRefrestToken} = require('../utils/generateToken');
+const jwt = require('jsonwebtoken');
+const { generateToken, generateRefreshToken } = require('../utils/generateToken');
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
+
 const registerUser = async (req, res, next) => {
-  try {
-    const { name, email, password } = req.body;
+  const { name, email, password } = req.body;
 
-    // Check if user exists
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      res.status(400); 
-      throw new Error('User already exists blablabla');
+  if (!name || !email || !password) {
+    return res.status(400).json({message:'Please provide name, email, and password'})
+  }
+
+  try {
+    const userExist = await User.findOne({ email });
+    if (userExist) {
+      return res.status(409).json({message:'User already exists'})
     }
 
-    // Create user
-    const user = await User.create({
-      name,
-      email,
-      password
+    const user = await User.create({ name, email, password });
+
+    const accessToken = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Save refresh token to user
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.cookie('jwt', refreshToken, {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 24 * 60 * 60 * 1000 
     });
 
     res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
-      token: generateToken(user._id)
+      accessToken 
     });
+
   } catch (err) {
-    next(err);
+    next(err); 
   }
 };
 
-// @desc    Authenticate user & get token
-// @route   POST /api/auth/login
-// @access  Public
+
 const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
+    console.log("user is ",user);
+
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate tokens
     const accessToken = generateToken(user._id);
-    const refreshToken = generateRefrestToken(user._id);
- 
+    const refreshToken = generateRefreshToken(user._id);
 
+    
     // Save refreshToken to DB
     user.refreshToken = refreshToken;
     await user.save();
 
+    res.cookie('jwt', refreshToken, {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true,
+      maxAge: 24 * 60 * 60 * 1000
+    })
+
     res.json({
       accessToken,
-      refreshToken,
     });
   } catch (err) {
+    console.log(err);
     next(err);
   }
 };
 
-// @desc    Get user profile
-// @route   GET /api/auth/profile
-// @access  Private
+
 const getUserProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
-
     if (user) {
       res.json({
         _id: user._id,
@@ -77,48 +91,87 @@ const getUserProfile = async (req, res, next) => {
         email: user.email
       });
     } else {
-      res.status(404);
-      throw new Error('User not found');
+      res.status(404).json({message:'User not found'})
     }
   } catch (err) {
     next(err);
-    //when next is called with a prametre automatically control
-    //skips all the upcoming middlewares if there are any
-    //and calls the middleware with 4 parametres
   }
 };
 
 const refreshAccessToken = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
-    
-    // Verify refresh token
-    console.log("inside refershToken");
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    // console.log('decoded is ',decoded)
+    const cookies = req.cookies;
 
-    // Check if token exists in DB
-    const user = await User.findById(decoded.id);
-    if (!user || user.refreshToken !== refreshToken) {
-      return res.status(403).json({ error: 'Invalid refresh token' });
+    if (!cookies?.jwt) {
+      return res.status(401).json({ error: 'Refresh token not found' });
     }
 
-    // Issue new access token
-    const newAccessToken = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '15m' }
-    );
+    const refreshToken = cookies.jwt;
+ 
+    try {
+      const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 
-    res.json({ accessToken: newAccessToken });
+      // Check if token exists in DB
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        return res.status(403).json({ error: 'User not found' });
+      }
+      
+      if (user.refreshToken !== refreshToken) {
+        return res.status(403).json({ error: 'Invalid refresh token' });
+      }
+
+      // Issue new access token
+      const accessToken = generateToken(user._id);
+      
+      res.json({ accessToken });
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(403).json({ error: 'Refresh token expired, please log in again' });
+      }
+      throw err;
+    }
   } catch (err) {
-    res.status(403).json({ error: 'Invalid refresh token' });
+    res.status(403).json({ error: 'Refresh token verification failed' });
+    next(err);
+  }
+};
+
+const logoutUser = async (req, res, next) => {
+  try {
+    const cookies = req.cookies;
+    
+    if (!cookies?.jwt) {
+      return res.status(204).json({ message: 'No content' }); // Success but no content
+    }
+    
+    const refreshToken = cookies.jwt;
+    
+    const user = await User.findOne({ refreshToken });
+    
+    if (user) {
+      // Clear the refresh token in DB
+      user.refreshToken = null;
+      await user.save();
+    }
+    
+    // Clear the cookie
+    res.clearCookie('jwt', {
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true
+    });
+    
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (err) {
+    next(err);
   }
 };
 
 module.exports = {
   registerUser,
   loginUser,
+  logoutUser,
   getUserProfile,
   refreshAccessToken
 };

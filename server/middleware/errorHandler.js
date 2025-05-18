@@ -1,15 +1,14 @@
-// errorHandler.js - Example advanced handler
 const errorHandler = (err, req, res, next) => {
-    console.error(err);
-    res.status(500).json({ 
-      success: false,
-      error: process.env.NODE_ENV === 'production' ? 'Server error' : err.message 
-    });
-  };
+  console.log(err);
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal server error'
+  res.status(statusCode).json({
+    success: false,
+    message
+  });
+};
 
 
-  
-  module.exports = errorHandler;
 
-//Most platforms automatically set NODE_ENV=production when deploying:
-//Heroku, Render, Railway: Set it automatically
+module.exports = errorHandler;
+

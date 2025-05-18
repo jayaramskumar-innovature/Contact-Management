@@ -4,13 +4,15 @@ const {
   registerUser,
   loginUser,
   getUserProfile,
-  refreshAccessToken
+  refreshAccessToken,
+  logoutUser
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.get('/profile', protect, getUserProfile);
-router.post('/refresh', refreshAccessToken); // New endpoint
+router.post('/refresh', refreshAccessToken);
+router.post('/logout', logoutUser); 
 
-module.exports = router; 
+module.exports = router;

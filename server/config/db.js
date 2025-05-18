@@ -13,7 +13,7 @@ const connectDB = async () => {
   }
 };
 
-module.exports = connectDB;
+module.exports = connectDB;  
 
 //0BbAtiss39G1bgAb
 //UseNewUrlParser: true

@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const contactRoutes = require('./routes/contactsRoutes');
 const authRoutes = require('./routes/authRoutes');
 const errorHandler = require('./middleware/errorHandler');
+const cookieParser = require('cookie-parser');
 
 dotenv.config();
 
@@ -11,15 +12,14 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
 
-// Database connection 
 require('./config/db')();
 
 // Routes
 app.use('/api/contacts', contactRoutes);
 app.use('/api/auth', authRoutes); 
 
-// Error handling middleware
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;

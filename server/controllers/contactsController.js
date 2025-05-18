@@ -1,8 +1,6 @@
 const Contact = require('../models/Contact');
 
-// @desc    Get all contacts with search and pagination
-// @route   GET /api/contacts
-// @access  Private
+
 const getContacts = async (req, res, next) => {
   try {
     // Pagination
@@ -11,20 +9,20 @@ const getContacts = async (req, res, next) => {
     const skip = (page - 1) * limit;
     
     // Search
-    const searchQuery = {};
-    if (req.query.search) {
-      searchQuery.$or = [
-        { firstName: { $regex: req.query.search, $options: 'i' } },
-        { lastName: { $regex: req.query.search, $options: 'i' } },
-        { company: { $regex: req.query.search, $options: 'i' } }
-      ];
-    }
+    // const searchQuery = {};
+    // if (req.query.search) {
+    //   searchQuery.$or = [
+    //     { firstName: { $regex: req.query.search, $options: 'i' } },
+    //     { lastName: { $regex: req.query.search, $options: 'i' } },
+    //     { company: { $regex: req.query.search, $options: 'i' } }
+    //   ];
+    // }
     
-    const contacts = await Contact.find(searchQuery)
+    const contacts = await Contact.find()
       .skip(skip)
       .limit(limit);
       
-    const total = await Contact.countDocuments(searchQuery);
+    const total = await Contact.countDocuments();
     
     res.status(200).json({
       success: true,
@@ -39,9 +37,7 @@ const getContacts = async (req, res, next) => {
   }
 };
 
-// @desc    Get single contact
-// @route   GET /api/contacts/:id
-// @access  Private
+
 const getContact = async (req, res, next) => {
   try {
     const contact = await Contact.findById(req.params.id);
@@ -62,20 +58,20 @@ const getContact = async (req, res, next) => {
   }
 };
 
-// @desc    Create new contact
-// @route   POST /api/contacts
-// @access  Private
+
 const createContact = async (req, res, next) => {
   try {
-    // Validate required fields
-    if (!req.body.firstName || !req.body.phoneNumbers || !req.body.phoneNumbers.length) {
+    if (!req.body.firstName || !req.body.lastName || !req.body.phoneNumber){
       return res.status(400).json({
         success: false,
         error: 'First name and at least one phone number are required'
       });
     }
 
-    const contact = await Contact.create(req.body);
+    const contact = await Contact.create({
+      ...req.body,
+      user:req.user._id
+    });
     
     res.status(201).json({
       success: true,
@@ -86,9 +82,7 @@ const createContact = async (req, res, next) => {
   }
 };
 
-// @desc    Update contact
-// @route   PUT /api/contacts/:id
-// @access  Private
+
 const updateContact = async (req, res, next) => {
   try {
     const contact = await Contact.findByIdAndUpdate(req.params.id, req.body, {
@@ -112,9 +106,7 @@ const updateContact = async (req, res, next) => {
   }
 };
 
-// @desc    Delete contact
-// @route   DELETE /api/contacts/:id
-// @access  Private
+
 const deleteContact = async (req, res, next) => {
   try {
     const contact = await Contact.findByIdAndDelete(req.params.id);
