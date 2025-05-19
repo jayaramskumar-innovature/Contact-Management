@@ -64,7 +64,7 @@ const createContact = async (req, res, next) => {
     if (!req.body.firstName || !req.body.lastName || !req.body.phoneNumber){
       return res.status(400).json({
         success: false,
-        error: 'First name and at least one phone number are required'
+        error: 'First name,lastName and phone number are required'
       });
     }
 
