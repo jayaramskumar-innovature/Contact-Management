@@ -7,16 +7,9 @@ const getContacts = async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+
     
-    // Search
-    // const searchQuery = {};
-    // if (req.query.search) {
-    //   searchQuery.$or = [
-    //     { firstName: { $regex: req.query.search, $options: 'i' } },
-    //     { lastName: { $regex: req.query.search, $options: 'i' } },
-    //     { company: { $regex: req.query.search, $options: 'i' } }
-    //   ];
-    // }
+ 
     
     const contacts = await Contact.find()
       .skip(skip)
@@ -134,3 +127,4 @@ module.exports = {
   updateContact,
   deleteContact
 };
+

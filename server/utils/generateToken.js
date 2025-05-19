@@ -14,5 +14,5 @@ const generateRefreshToken = (id)=>{
 
 module.exports = {
   generateToken,
-  generateRefreshToken
+  generateRefreshToken 
 };
